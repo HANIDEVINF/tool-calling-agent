@@ -27,6 +27,63 @@ type Message = {
   toolCalls?: ToolCall[]
 }
 
+function evaluateArithmetic(expression: string): number {
+  const input = expression.replace(/\s+/g, "")
+  const tokens = input.match(/\d+(?:\.\d+)?|[()+\-*/]/g) ?? []
+  if (!input || tokens.length === 0 || tokens.join("") !== input) {
+    throw new Error("Only numbers, parentheses, and + - * / operators are supported.")
+  }
+
+  let index = 0
+  const parseExpression = (): number => {
+    let value = parseTerm()
+    while (tokens[index] === "+" || tokens[index] === "-") {
+      const operator = tokens[index++]
+      const rhs = parseTerm()
+      value = operator === "+" ? value + rhs : value - rhs
+    }
+    return value
+  }
+
+  const parseTerm = (): number => {
+    let value = parseFactor()
+    while (tokens[index] === "*" || tokens[index] === "/") {
+      const operator = tokens[index++]
+      const rhs = parseFactor()
+      if (operator === "/" && rhs === 0) throw new Error("Division by zero is not allowed.")
+      value = operator === "*" ? value * rhs : value / rhs
+    }
+    return value
+  }
+
+  const parseFactor = (): number => {
+    const token = tokens[index]
+    if (token === "+" || token === "-") {
+      index += 1
+      const value = parseFactor()
+      return token === "-" ? -value : value
+    }
+    if (token === "(") {
+      index += 1
+      const value = parseExpression()
+      if (tokens[index] !== ")") throw new Error("Mismatched parentheses.")
+      index += 1
+      return value
+    }
+    if (token === undefined || !/^\d+(?:\.\d+)?$/.test(token)) {
+      throw new Error("Expected a number.")
+    }
+    index += 1
+    return Number(token)
+  }
+
+  const result = parseExpression()
+  if (index !== tokens.length || !Number.isFinite(result)) {
+    throw new Error("Invalid or non-finite arithmetic expression.")
+  }
+  return result
+}
+
 const tools = {
   weather: {
     name: "Weather API",
@@ -53,8 +110,7 @@ const tools = {
     description: "Perform mathematical calculations",
     execute: (input: string) => {
       try {
-        const sanitized = input.replace(/[^0-9+\-*/().]/g, "")
-        const result = eval(sanitized)
+        const result = evaluateArithmetic(input)
         return `${input} = ${result}`
       } catch {
         return "Invalid calculation. Please use basic math operations."
@@ -173,18 +229,24 @@ export default function Home() {
               <Brain className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">Tool-Calling AI Agent</h1>
-              <p className="text-xs text-slate-400">Multi-step reasoning with external tools</p>
+              <h1 className="text-xl font-bold text-white">Rule-Based Tool-Calling Prototype</h1>
+              <p className="text-xs text-slate-400">Keyword routing with local mock tools; no live language-model call</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-400">
               <Sparkles className="h-4 w-4" />
-              <span>3 Tools Available</span>
+              <span>3 Mock Tools</span>
             </div>
           </div>
         </div>
       </header>
+
+      <div role="note" className="mx-auto max-w-6xl px-6 pt-5">
+        <div className="rounded-xl border border-amber-500/25 bg-amber-950/20 px-4 py-3 text-sm leading-relaxed text-amber-100">
+          <strong>Prototype:</strong> routing is keyword-based, weather and product data are local fixtures, and no external tool or AI model is called. This demonstrates the UI and tool contract flow only.
+        </div>
+      </div>
 
       <div className="mx-auto grid max-w-6xl gap-6 px-6 py-8 lg:grid-cols-[1fr_0.8fr]">
         <div className="flex flex-col gap-4">
